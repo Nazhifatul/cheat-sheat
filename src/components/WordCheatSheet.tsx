@@ -41,24 +41,33 @@ export function WordCheatSheet() {
       }
 
       setIsLoadingWords(true);
-      const { data, error: fetchError } = await client
-        .from("words")
-        .select("word")
-        .order("created_at", { ascending: false })
-        .limit(5000);
+      const pageSize = 1000;
+      const maxRows = 20000;
+      const collected: string[] = [];
+      for (let from = 0; from < maxRows; from += pageSize) {
+        const { data, error: fetchError } = await client
+          .from("words")
+          .select("word")
+          .order("created_at", { ascending: false })
+          .range(from, from + pageSize - 1);
 
-      if (isCancelled) return;
+        if (isCancelled) return;
 
-      if (fetchError) {
-        setWords(uniqueWordsCaseInsensitive(SAMPLE_WORDS));
-        setIsLoadingWords(false);
-        setManualError(
-          "Gagal memuat kamus online. Menampilkan data lokal sementara.",
-        );
-        return;
+        if (fetchError) {
+          setWords(uniqueWordsCaseInsensitive(SAMPLE_WORDS));
+          setIsLoadingWords(false);
+          setManualError(
+            "Gagal memuat kamus online. Menampilkan data lokal sementara.",
+          );
+          return;
+        }
+
+        const pageWords = (data ?? []).map((row) => row.word);
+        collected.push(...pageWords);
+        if (pageWords.length < pageSize) break;
       }
 
-      setWords(uniqueWordsCaseInsensitive((data ?? []).map((row) => row.word)));
+      setWords(uniqueWordsCaseInsensitive(collected));
       setIsLoadingWords(false);
       setManualError(null);
     }
@@ -71,27 +80,24 @@ export function WordCheatSheet() {
       .channel("words-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "words" },
+        { event: "INSERT", schema: "public", table: "words" },
         (payload) => {
-          if (payload.eventType === "INSERT") {
-            const w = (payload.new as { word?: unknown } | null)?.word;
-            if (typeof w === "string") {
-              setWords((prev) => uniqueWordsCaseInsensitive([w, ...prev]));
-            }
-            return;
+          const w = (payload.new as { word?: unknown } | null)?.word;
+          if (typeof w === "string") {
+            setWords((prev) => uniqueWordsCaseInsensitive([w, ...prev]));
           }
-
-          if (payload.eventType === "DELETE") {
-            const w = (payload.old as { word?: unknown } | null)?.word;
-            if (typeof w === "string") {
-              setWords((prev) =>
-                prev.filter((x) => x.toLocaleLowerCase() !== w.toLocaleLowerCase()),
-              );
-            }
-            return;
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "words" },
+        (payload) => {
+          const w = (payload.old as { word?: unknown } | null)?.word;
+          if (typeof w === "string") {
+            setWords((prev) =>
+              prev.filter((x) => x.toLocaleLowerCase() !== w.toLocaleLowerCase()),
+            );
           }
-
-          loadFromSupabase();
         },
       )
       .subscribe();
