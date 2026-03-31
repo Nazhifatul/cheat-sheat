@@ -22,7 +22,7 @@ function InputRoot(
       ref={ref}
       type={type}
       className={cn(
-        "w-full border border-slate-200/70 bg-white/85 text-slate-950 shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-500/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 dark:border-white/10 dark:bg-black/20 dark:text-white/90 dark:placeholder:text-white/35 dark:focus:border-[#7DD3FC]/45 dark:focus:ring-[#7DD3FC]/20 dark:disabled:bg-white/5 dark:disabled:text-white/40",
+        "w-full appearance-none border border-slate-300 bg-white text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.04)] outline-none transition-colors placeholder:text-slate-400 placeholder:opacity-100 focus:border-[#0f766e]/45 focus:bg-white focus:ring-4 focus:ring-[#0f766e]/12 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400",
         sizeClass[uiSize],
         className,
       )}

@@ -1,4 +1,5 @@
 import {
+  filterWordsEndsWith,
   filterWordsStartsWith,
   uniqueWordsCaseInsensitive,
 } from "@/utils/filterWords";
@@ -8,6 +9,7 @@ export type SortMode = "recent" | "az";
 export type WordsViewParams = {
   words: string[];
   query: string;
+  suffixQuery: string;
   sortMode: SortMode;
   minLen: number | null;
   maxLen: number | null;
@@ -25,11 +27,15 @@ export function computeVisibleWords(params: WordsViewParams) {
       : unique;
 
   const startsWithFiltered = filterWordsStartsWith(sorted, params.query);
+  const endsWithFiltered = filterWordsEndsWith(
+    startsWithFiltered,
+    params.suffixQuery,
+  );
 
   const minLen = params.minLen ?? 0;
   const maxLen = params.maxLen ?? Number.POSITIVE_INFINITY;
 
-  const lengthFiltered = startsWithFiltered.filter(
+  const lengthFiltered = endsWithFiltered.filter(
     (w) => w.length >= minLen && w.length <= maxLen,
   );
 
@@ -43,4 +49,3 @@ export function computeVisibleWords(params: WordsViewParams) {
     visible: lengthFiltered.slice(0, safeLimit),
   };
 }
-

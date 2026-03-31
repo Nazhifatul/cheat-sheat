@@ -12,13 +12,13 @@ export type StatusBadge = {
 
 const toneClass: Record<BadgeTone, string> = {
   neutral:
-    "border-slate-200/70 bg-white/75 text-slate-700 supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5 dark:text-white/80",
+    "border-slate-900/10 bg-white/80 text-slate-700",
   info:
-    "border-sky-200/70 bg-sky-50 text-sky-800 dark:border-[#7DD3FC]/25 dark:bg-[#7DD3FC]/10 dark:text-[#D9F2FF]",
+    "border-cyan-900/10 bg-cyan-50 text-cyan-800",
   success:
-    "border-emerald-200/70 bg-emerald-50 text-emerald-800 dark:border-[#34D399]/25 dark:bg-[#34D399]/10 dark:text-[#D7FFE9]",
+    "border-emerald-900/10 bg-emerald-50 text-emerald-800",
   danger:
-    "border-rose-200/70 bg-rose-50 text-rose-800 dark:border-[#FB7185]/25 dark:bg-[#FB7185]/10 dark:text-[#FFE1E6]",
+    "border-rose-900/10 bg-rose-50 text-rose-800",
 };
 
 export function StatusBadgesRow({
@@ -34,14 +34,14 @@ export function StatusBadgesRow({
         <div
           key={b.label}
           className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs backdrop-blur",
+            "inline-flex items-center gap-3 rounded-2xl border px-3 py-2 text-xs shadow-sm backdrop-blur",
             toneClass[b.tone ?? "neutral"],
           )}
         >
-          <span className="font-mono tracking-wide text-slate-500 dark:text-white/60">
+          <span className="font-mono tracking-[0.22em] text-slate-500">
             {b.label}
           </span>
-          <span className="font-mono text-slate-900 dark:text-white/90">
+          <span className="font-mono text-slate-900">
             {b.value}
           </span>
         </div>

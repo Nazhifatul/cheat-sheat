@@ -15,7 +15,6 @@ import {
   splitEntriesFromText,
 } from "@/utils/extractTextFromFile";
 import { FilterCard, type FilterState } from "@/components/landing/FilterCard";
-import { HeroSection } from "@/components/landing/HeroSection";
 import { OutputChips } from "@/components/landing/OutputChips";
 import { StatusBadgesRow } from "@/components/landing/StatusBadgesRow";
 import { SAMPLE_WORDS } from "@/utils/sampleWords";
@@ -41,6 +40,7 @@ async function copyText(value: string) {
 
 export function WordCheatSheet() {
   const [query, setQuery] = React.useState("");
+  const [suffixQuery, setSuffixQuery] = React.useState("");
   const [newWord, setNewWord] = React.useState("");
   const [words, setWords] = React.useState<string[]>([]);
   const [isLoadingWords, setIsLoadingWords] = React.useState(true);
@@ -58,7 +58,6 @@ export function WordCheatSheet() {
   const [toast, setToast] = React.useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = React.useState<Date | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const outputRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const client = supabase;
@@ -146,12 +145,21 @@ export function WordCheatSheet() {
     return computeVisibleWords({
       words,
       query,
+      suffixQuery,
       sortMode: filters.sortMode,
       minLen: filters.minLen,
       maxLen: filters.maxLen,
       limit: filters.limit,
     });
-  }, [filters.limit, filters.maxLen, filters.minLen, filters.sortMode, query, words]);
+  }, [
+    filters.limit,
+    filters.maxLen,
+    filters.minLen,
+    filters.sortMode,
+    query,
+    suffixQuery,
+    words,
+  ]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -288,15 +296,6 @@ export function WordCheatSheet() {
     return () => window.clearTimeout(id);
   }, [toast]);
 
-  function focusInput() {
-    inputRef.current?.focus();
-    inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  function focusOutput() {
-    outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   async function onCopy(value: string) {
     try {
       await copyText(value);
@@ -304,6 +303,12 @@ export function WordCheatSheet() {
     } catch {
       setToast("Gagal menyalin.");
     }
+  }
+
+  function clearSearch() {
+    setQuery("");
+    setSuffixQuery("");
+    inputRef.current?.focus();
   }
 
   const modeBadge = supabase
@@ -320,11 +325,37 @@ export function WordCheatSheet() {
         minute: "2-digit",
       }).format(lastSyncAt)
     : "-";
+  const hasActiveSearch = Boolean(query.trim() || suffixQuery.trim());
+  const patternPreview =
+    query.trim() || suffixQuery.trim()
+      ? `${query.trim() || "…"} • ${suffixQuery.trim() || "…"}`
+      : "semua kata";
 
   return (
-    <div className="flex-1">
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-        <HeroSection onCtaClick={focusInput} />
+    <div className="relative flex-1 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.08),transparent_24%),radial-gradient(circle_at_top_right,rgba(20,184,166,0.1),transparent_28%),linear-gradient(180deg,#fffdf8_0%,#f8fafc_55%,#f3f7f6_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.04)_1px,transparent_1px)] bg-[size:30px_30px] opacity-30" />
+
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:min-h-screen lg:px-8 lg:py-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-mono text-[10px] tracking-[0.32em] text-slate-500">
+              CHEATWORDS
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+              Cari kata tanpa ribet
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Ketik awalan atau akhiran, hasil langsung muncul di samping.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-900/10 bg-white/85 px-4 py-3 text-right shadow-sm">
+            <p className="font-mono text-[10px] tracking-[0.24em] text-slate-500">
+              POLA
+            </p>
+            <p className="mt-1 font-mono text-sm text-slate-950">{patternPreview}</p>
+          </div>
+        </div>
 
         <StatusBadgesRow
           className="mt-4"
@@ -337,92 +368,82 @@ export function WordCheatSheet() {
           ]}
         />
 
-        <div className="mt-8 grid gap-4 lg:grid-cols-12">
-          <section className="space-y-4 lg:col-span-7">
-            <Card.Root className="rounded-3xl border-slate-200/70 bg-white/75 backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5">
+        <div className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+          <aside className="space-y-4">
+            <Card.Root className="rounded-[1.5rem] border-slate-900/10 bg-white/88 shadow-[0_16px_40px_rgba(15,23,42,0.06)] backdrop-blur">
               <Card.Header>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
-                      INPUT
-                    </p>
-                    <h2 className="mt-2 text-sm font-semibold text-slate-950 dark:text-white/90">
-                      Kata/Frasa Awal
-                    </h2>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-white/60">
-                      Hasil muncul saat mengetik (startsWith, tidak peka huruf besar/kecil).
-                    </p>
-                  </div>
-                  <Button.Root
-                    variant="neutral"
-                    mode="stroke"
-                    size="sm"
-                    onClick={() => {
-                      setQuery("");
-                      focusInput();
-                    }}
-                  >
-                    Clear
-                  </Button.Root>
-                </div>
+                <p className="font-mono text-[10px] tracking-[0.28em] text-slate-500">
+                  INPUT CEPAT
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                  Langsung ketik
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  Tidak perlu klik tombol lihat hasil. Area hasil akan selalu terlihat.
+                </p>
               </Card.Header>
               <Card.Body>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="flex-1">
-                    <Label.Root htmlFor="search" className="sr-only">
-                      Kata/Frasa awal
+                <div className="space-y-4">
+                  <div>
+                    <Label.Root htmlFor="search" className="text-sm font-medium text-slate-700">
+                      Awalan kata
                     </Label.Root>
                     <Input.Root
                       ref={inputRef}
                       id="search"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") focusOutput();
-                      }}
-                      placeholder='Contoh: "A", "AN", "ANT"'
+                      placeholder="mis. me, anti, pro"
                       autoComplete="off"
-                      className="h-12"
+                      className="mt-2 h-12 rounded-[1rem] border-slate-900/10 bg-white text-base"
                     />
                   </div>
-                  <Button.Root
-                    className="h-12 sm:w-36"
-                    onClick={focusOutput}
-                    disabled={!query.trim()}
-                  >
-                    Proses
-                  </Button.Root>
-                </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs text-slate-600 dark:text-white/60">
-                    {!query.trim()
-                      ? "Ketik awalan untuk memfilter."
-                      : `Menampilkan untuk: “${query.trim()}”`}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-white/45">
-                    {supabase
-                      ? "Tersimpan di Supabase dan tersinkron real-time."
-                      : "Mode lokal: Supabase belum aktif."}
-                  </p>
+                  <div>
+                    <Label.Root htmlFor="suffix" className="text-sm font-medium text-slate-700">
+                      Kata akhir
+                    </Label.Root>
+                    <Input.Root
+                      id="suffix"
+                      value={suffixQuery}
+                      onChange={(e) => setSuffixQuery(e.target.value)}
+                      placeholder="opsional, mis. kan, an, i"
+                      autoComplete="off"
+                      className="mt-2 h-12 rounded-[1rem] border-slate-900/10 bg-white text-base"
+                    />
+                  </div>
+
+                  <div className="rounded-[1.15rem] border border-slate-900/10 bg-slate-50/80 px-3 py-3">
+                    <p className="font-mono text-[10px] tracking-[0.24em] text-slate-500">
+                      STATUS
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      {hasActiveSearch
+                        ? `Menampilkan hasil untuk ${patternPreview}`
+                        : "Belum ada filter aktif."}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button.Root
+                      variant="neutral"
+                      mode="stroke"
+                      className="flex-1"
+                      onClick={clearSearch}
+                    >
+                      Bersihkan
+                    </Button.Root>
+                    <Button.Root
+                      className="flex-1 bg-slate-950 text-white hover:bg-slate-800 active:bg-slate-800"
+                      onClick={() => inputRef.current?.focus()}
+                    >
+                      Fokus
+                    </Button.Root>
+                  </div>
                 </div>
               </Card.Body>
             </Card.Root>
 
-            <div ref={outputRef}>
-              <OutputChips
-                id="hasil"
-                isLoading={isLoadingWords}
-                query={query}
-                totalUnique={view.totalUnique}
-                matched={view.matched}
-                items={view.visible}
-                onCopy={onCopy}
-              />
-            </div>
-          </section>
-
-          <aside className="space-y-4 lg:col-span-5">
             <FilterCard
               value={filters}
               onChange={setFilters}
@@ -431,45 +452,39 @@ export function WordCheatSheet() {
               }
             />
 
-            <Card.Root className="rounded-3xl border-slate-200/70 bg-white/75 backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5">
+            <Card.Root className="rounded-[1.5rem] border-slate-900/10 bg-white/88 shadow-[0_16px_40px_rgba(15,23,42,0.06)] backdrop-blur">
               <Card.Header>
-                <h2 className="text-sm font-semibold text-slate-950 dark:text-white/90">
-                  Tambah Data
+                <p className="font-mono text-[10px] tracking-[0.28em] text-slate-500">
+                  DATA
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                  Import dan tambah
                 </h2>
-                <p className="mt-1 text-xs text-slate-600 dark:text-white/60">
-                  Import file dan tambah manual. Angka/marker seperti “141.” atau “.” otomatis dibuang.
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  Fitur tambahan tetap ada, tapi tidak mengganggu area pencarian utama.
                 </p>
               </Card.Header>
               <Card.Body>
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <div>
-                    <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
-                      IMPORT
-                    </p>
-                    <div className="mt-2">
-                      <Label.Root htmlFor="importFile" className="sr-only">
-                        Pilih file
-                      </Label.Root>
-                      <input
-                        id="importFile"
-                        type="file"
-                        accept=".pdf,.docx,.txt"
-                        onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                        className="block w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-sky-500/15 dark:border-white/10 dark:bg-black/20 dark:text-white/80 dark:file:bg-white/10 dark:hover:file:bg-white/15 dark:focus:ring-[#7DD3FC]/20"
-                      />
-                      {importStatus ? (
-                        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                          {importStatus}
-                        </p>
-                      ) : null}
-                      {importError ? (
-                        <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
-                          {importError}
-                        </p>
-                      ) : null}
-                    </div>
+                    <Label.Root htmlFor="importFile" className="text-sm font-medium text-slate-700">
+                      Import file
+                    </Label.Root>
+                    <input
+                      id="importFile"
+                      type="file"
+                      accept=".pdf,.docx,.txt"
+                      onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                      className="mt-2 block w-full rounded-2xl border border-slate-900/10 bg-slate-50/70 px-4 py-3 text-sm text-slate-700 shadow-sm file:mr-3 file:rounded-xl file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-[#0f766e]/15"
+                    />
+                    {importStatus ? (
+                      <p className="mt-2 text-xs text-emerald-700">{importStatus}</p>
+                    ) : null}
+                    {importError ? (
+                      <p className="mt-2 text-xs text-rose-700">{importError}</p>
+                    ) : null}
                     <Button.Root
-                      className="mt-3 w-full"
+                      className="mt-3 w-full bg-[#0f766e] text-white hover:bg-[#115e59] active:bg-[#115e59]"
                       onClick={onImport}
                       disabled={!importFile || isImporting}
                     >
@@ -477,44 +492,38 @@ export function WordCheatSheet() {
                     </Button.Root>
                   </div>
 
-                  <div className="h-px w-full bg-white/10" />
+                  <div className="h-px w-full bg-slate-200" />
 
-                  <div>
-                    <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
-                      MANUAL
-                    </p>
-                    <form onSubmit={onSubmit} className="mt-2 space-y-3">
-                      <div>
-                        <Label.Root htmlFor="newWord" className="sr-only">
-                          Kata atau kalimat baru
-                        </Label.Root>
-                        <Input.Root
-                          id="newWord"
-                          value={newWord}
-                          onChange={(e) => setNewWord(e.target.value)}
-                          placeholder="Tulis kata atau kalimat baru…"
-                          autoComplete="off"
-                        />
-                        {manualError ? (
-                          <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
-                            {manualError}
-                          </p>
-                        ) : null}
-                      </div>
-                      <Button.Root className="w-full">Simpan</Button.Root>
-                    </form>
-                  </div>
+                  <form onSubmit={onSubmit} className="space-y-3">
+                    <div>
+                      <Label.Root htmlFor="newWord" className="text-sm font-medium text-slate-700">
+                        Tambah kata
+                      </Label.Root>
+                      <Input.Root
+                        id="newWord"
+                      value={newWord}
+                      onChange={(e) => setNewWord(e.target.value)}
+                      placeholder="Tulis kata atau kalimat baru…"
+                      autoComplete="off"
+                      className="mt-2 border-slate-300 bg-white"
+                    />
+                      {manualError ? (
+                        <p className="mt-2 text-xs text-rose-700">{manualError}</p>
+                      ) : null}
+                    </div>
+                    <Button.Root className="w-full bg-[#f97316] text-slate-950 hover:bg-[#ea580c] active:bg-[#ea580c]">
+                      Simpan
+                    </Button.Root>
+                  </form>
 
-                  <div className="h-px w-full bg-white/10" />
+                  <div className="h-px w-full bg-slate-200" />
 
                   <div>
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
+                      <p className="font-mono text-[10px] tracking-[0.24em] text-slate-500">
                         TERBARU
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-white/50">
-                        {words.length} entri
-                      </p>
+                      <p className="text-xs text-slate-500">{words.length} entri</p>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       {words.slice(0, 8).map((w) => (
@@ -522,7 +531,7 @@ export function WordCheatSheet() {
                           key={w.toLocaleLowerCase()}
                           type="button"
                           onClick={() => onCopy(w)}
-                          className="rounded-2xl border border-slate-200/70 bg-slate-950/[0.03] px-3 py-2 text-left text-xs text-slate-700 transition-colors hover:border-sky-200 hover:bg-slate-950/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/30 dark:border-white/10 dark:bg-black/20 dark:text-white/80 dark:hover:border-[#7DD3FC]/35 dark:hover:bg-black/30 dark:focus-visible:ring-[#7DD3FC]/35"
+                          className="rounded-2xl border border-slate-900/10 bg-slate-50/80 px-3 py-2 text-left text-xs text-slate-700 transition-colors hover:border-[#0f766e]/30 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e]/30"
                         >
                           <span className="block truncate font-mono">{w}</span>
                         </button>
@@ -533,9 +542,23 @@ export function WordCheatSheet() {
               </Card.Body>
             </Card.Root>
           </aside>
+
+          <section className="min-h-[50vh] lg:min-h-0">
+            <OutputChips
+              id="hasil"
+              className="h-full"
+              isLoading={isLoadingWords}
+              query={query}
+              suffixQuery={suffixQuery}
+              totalUnique={view.totalUnique}
+              matched={view.matched}
+              items={view.visible}
+              onCopy={onCopy}
+            />
+          </section>
         </div>
 
-        <footer className="mt-10 text-center text-xs text-slate-500 dark:text-white/45">
+        <footer className="mt-4 text-center text-xs text-slate-500">
           {supabase
             ? "LIVE FEED ACTIVE"
             : "LOCAL MODE ACTIVE — set env Supabase untuk sinkron real-time"}
@@ -543,7 +566,7 @@ export function WordCheatSheet() {
       </div>
 
       {toast ? (
-        <div className="pointer-events-none fixed bottom-6 right-6 z-50 rounded-2xl border border-slate-200/70 bg-white/85 px-4 py-3 text-sm text-slate-800 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:border-white/10 dark:bg-black/40 dark:text-white/85 dark:shadow-[0_14px_40px_rgba(0,0,0,0.55)]">
+        <div className="pointer-events-none fixed bottom-6 right-6 z-50 rounded-2xl border border-slate-900/10 bg-white/92 px-4 py-3 text-sm text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.14)] backdrop-blur">
           <span className="font-mono">{toast}</span>
         </div>
       ) : null}

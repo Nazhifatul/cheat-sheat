@@ -35,3 +35,10 @@ export function filterWordsStartsWith(words: string[], query: string) {
 
   return words.filter((w) => w.toLocaleLowerCase().startsWith(q));
 }
+
+export function filterWordsEndsWith(words: string[], query: string) {
+  const q = query.trim().toLocaleLowerCase();
+  if (!q) return words;
+
+  return words.filter((w) => w.toLocaleLowerCase().endsWith(q));
+}

@@ -7,6 +7,7 @@ export type OutputChipsProps = {
   title?: string;
   isLoading: boolean;
   query: string;
+  suffixQuery?: string;
   totalUnique: number;
   matched: number;
   items: string[];
@@ -19,57 +20,85 @@ export function OutputChips({
   title = "Hasil",
   isLoading,
   query,
+  suffixQuery = "",
   totalUnique,
   matched,
   items,
   onCopy,
   className,
 }: OutputChipsProps) {
-  const emptyQuery = !query.trim();
+  const emptyQuery = !query.trim() && !suffixQuery.trim();
   const showEmpty = !items.length;
+  const activePattern =
+    query.trim() || suffixQuery.trim()
+      ? `${query.trim() || "…"} • ${suffixQuery.trim() || "…"}`
+      : "semua kata";
 
   return (
-    <section id={id} className={cn("rounded-3xl", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+    <section
+      id={id}
+      className={cn(
+        "flex h-full min-h-0 flex-col lg:max-h-[calc(100vh-14rem)]",
+        className,
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
-            &gt;&gt; DATA_OUTPUT
+          <p className="font-mono text-[10px] tracking-[0.28em] text-slate-500">
+            HASIL LIVE
           </p>
-          <h2 className="mt-2 text-lg font-semibold text-slate-950 dark:text-white/90">
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">
             {title}
           </h2>
+          <p className="mt-1 text-xs text-slate-600">
+            Pola aktif: <span className="font-mono text-slate-900">{activePattern}</span>
+          </p>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/75 px-3 py-2 text-xs text-slate-700 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5 dark:text-white/80 dark:shadow-none">
-          <span className="font-mono">{matched}</span>
-          <span className="text-slate-400 dark:text-white/50">/</span>
-          <span className="font-mono text-slate-500 dark:text-white/60">{totalUnique}</span>
-          <span className="text-slate-400 dark:text-white/50">hasil</span>
+        <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-900/10 bg-slate-50/90 px-3 py-2 text-xs text-slate-700">
+          <div>
+            <span className="block font-mono text-[11px] tracking-[0.2em] text-slate-500">
+              MATCHED
+            </span>
+            <span className="mt-1 block font-mono text-base text-slate-950">{matched}</span>
+          </div>
+          <div className="h-8 w-px bg-slate-200" />
+          <div>
+            <span className="block font-mono text-[11px] tracking-[0.2em] text-slate-500">
+              TOTAL
+            </span>
+            <span className="mt-1 block font-mono text-base text-slate-950">{totalUnique}</span>
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 rounded-3xl border border-slate-200/70 bg-white/75 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5 dark:shadow-[0_14px_40px_rgba(0,0,0,0.45)]">
+      <div className="mt-3 flex min-h-0 flex-1 overflow-hidden rounded-[1.5rem] border border-slate-900/10 bg-white/88 p-3 shadow-[0_16px_40px_rgba(15,23,42,0.06)] backdrop-blur sm:p-4">
         {isLoading ? (
-          <div className="py-10 text-center text-sm text-slate-600 dark:text-white/65">
+          <div className="flex flex-1 items-center justify-center text-center text-sm text-slate-600">
             Memuat kamus…
           </div>
         ) : showEmpty ? (
-          <div className="py-10 text-center text-sm text-slate-600 dark:text-white/65">
+          <div className="flex flex-1 items-center justify-center text-center text-sm text-slate-600">
             {emptyQuery
-              ? "Belum ada hasil — ketik awalan kata untuk memfilter."
-              : "Tidak ada hasil — coba ubah awalan atau filter."}
+              ? "Belum ada hasil. Isi awalan kata atau kata akhir untuk mulai menyaring."
+              : "Tidak ada hasil. Coba ubah awalan, akhiran, atau filter panjang kata."}
           </div>
         ) : (
-          <div className="max-h-[44vh] overflow-auto pr-1">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="min-h-0 flex-1 overflow-auto pr-1">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
               {items.map((w) => (
                 <button
                   key={w.toLocaleLowerCase()}
                   type="button"
                   onClick={() => onCopy(w)}
-                  className="group relative rounded-2xl border border-slate-200/70 bg-slate-950/[0.03] px-3 py-2 text-left text-sm text-slate-900 transition-colors hover:border-sky-200 hover:bg-slate-950/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/30 dark:border-white/10 dark:bg-black/20 dark:text-white/85 dark:hover:border-[#7DD3FC]/35 dark:hover:bg-black/30 dark:focus-visible:ring-[#7DD3FC]/35"
+                  className="group relative overflow-hidden rounded-[1.15rem] border border-slate-900/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(248,250,252,0.98))] px-3 py-3 text-left text-sm text-slate-900 transition-transform transition-colors hover:-translate-y-0.5 hover:border-[#0f766e]/30 hover:bg-[linear-gradient(135deg,rgba(240,253,250,0.96),rgba(255,247,237,0.96))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e]/30"
                 >
-                  <span className="block truncate font-mono">{w}</span>
-                  <span className="pointer-events-none absolute inset-x-3 -bottom-[1px] h-px bg-gradient-to-r from-transparent via-sky-400/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100 dark:via-[#7DD3FC]/60" />
+                  <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[#0f766e] to-[#f97316]" />
+                  <span className="block min-h-12 break-words pl-2 pr-1 font-mono text-[15px] leading-6 whitespace-normal">
+                    {w}
+                  </span>
+                  <span className="mt-1 block pl-2 text-[10px] uppercase tracking-[0.24em] text-slate-400 transition-colors group-hover:text-slate-500">
+                    copy
+                  </span>
                 </button>
               ))}
             </div>

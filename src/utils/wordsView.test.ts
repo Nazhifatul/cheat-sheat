@@ -7,6 +7,7 @@ describe("computeVisibleWords", () => {
     const result = computeVisibleWords({
       words: ["Atap", "atap", "Batu"],
       query: "a",
+      suffixQuery: "",
       sortMode: "recent",
       minLen: null,
       maxLen: null,
@@ -22,6 +23,7 @@ describe("computeVisibleWords", () => {
     const result = computeVisibleWords({
       words: ["tif", "tiflofili", "tifa"],
       query: "tif",
+      suffixQuery: "a",
       sortMode: "az",
       minLen: 4,
       maxLen: 7,
@@ -30,5 +32,18 @@ describe("computeVisibleWords", () => {
 
     expect(result.visible).toEqual(["tifa"]);
   });
-});
 
+  it("filter by suffix when provided", () => {
+    const result = computeVisibleWords({
+      words: ["melangkah", "merendah", "memetik"],
+      query: "me",
+      suffixQuery: "ah",
+      sortMode: "recent",
+      minLen: null,
+      maxLen: null,
+      limit: 10,
+    });
+
+    expect(result.visible).toEqual(["melangkah", "merendah"]);
+  });
+});
