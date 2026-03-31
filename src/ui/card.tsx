@@ -12,7 +12,7 @@ function CardRoot(
     <div
       ref={ref}
       className={cn(
-        "rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/10",
+        "rounded-3xl border border-slate-200/70 bg-white/75 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5 dark:shadow-[0_14px_40px_rgba(0,0,0,0.45)]",
         className,
       )}
       {...props}

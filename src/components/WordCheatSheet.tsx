@@ -7,7 +7,6 @@ import * as Card from "@/ui/card";
 import * as Input from "@/ui/input";
 import * as Label from "@/ui/label";
 import {
-  filterWordsStartsWith,
   sanitizeEntry,
   uniqueWordsCaseInsensitive,
 } from "@/utils/filterWords";
@@ -15,8 +14,30 @@ import {
   extractTextFromFile,
   splitEntriesFromText,
 } from "@/utils/extractTextFromFile";
+import { FilterCard, type FilterState } from "@/components/landing/FilterCard";
+import { HeroSection } from "@/components/landing/HeroSection";
+import { OutputChips } from "@/components/landing/OutputChips";
+import { StatusBadgesRow } from "@/components/landing/StatusBadgesRow";
 import { SAMPLE_WORDS } from "@/utils/sampleWords";
 import { isSupabaseConfigured, supabase } from "@/utils/supabaseClient";
+import { computeVisibleWords } from "@/utils/wordsView";
+
+async function copyText(value: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const el = document.createElement("textarea");
+  el.value = value;
+  el.setAttribute("readonly", "");
+  el.style.position = "absolute";
+  el.style.left = "-9999px";
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand("copy");
+  document.body.removeChild(el);
+}
 
 export function WordCheatSheet() {
   const [query, setQuery] = React.useState("");
@@ -28,6 +49,16 @@ export function WordCheatSheet() {
   const [importStatus, setImportStatus] = React.useState<string | null>(null);
   const [importError, setImportError] = React.useState<string | null>(null);
   const [manualError, setManualError] = React.useState<string | null>(null);
+  const [filters, setFilters] = React.useState<FilterState>({
+    sortMode: "recent",
+    minLen: null,
+    maxLen: null,
+    limit: 200,
+  });
+  const [toast, setToast] = React.useState<string | null>(null);
+  const [lastSyncAt, setLastSyncAt] = React.useState<Date | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const outputRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const client = supabase;
@@ -70,6 +101,7 @@ export function WordCheatSheet() {
       setWords(uniqueWordsCaseInsensitive(collected));
       setIsLoadingWords(false);
       setManualError(null);
+      setLastSyncAt(new Date());
     }
 
     loadFromSupabase();
@@ -85,6 +117,7 @@ export function WordCheatSheet() {
           const w = (payload.new as { word?: unknown } | null)?.word;
           if (typeof w === "string") {
             setWords((prev) => uniqueWordsCaseInsensitive([w, ...prev]));
+            setLastSyncAt(new Date());
           }
         },
       )
@@ -97,6 +130,7 @@ export function WordCheatSheet() {
             setWords((prev) =>
               prev.filter((x) => x.toLocaleLowerCase() !== w.toLocaleLowerCase()),
             );
+            setLastSyncAt(new Date());
           }
         },
       )
@@ -108,13 +142,16 @@ export function WordCheatSheet() {
     };
   }, []);
 
-  const allWords = React.useMemo(() => {
-    return uniqueWordsCaseInsensitive(words);
-  }, [words]);
-
-  const filtered = React.useMemo(() => {
-    return filterWordsStartsWith(allWords, query);
-  }, [allWords, query]);
+  const view = React.useMemo(() => {
+    return computeVisibleWords({
+      words,
+      query,
+      sortMode: filters.sortMode,
+      minLen: filters.minLen,
+      maxLen: filters.maxLen,
+      limit: filters.limit,
+    });
+  }, [filters.limit, filters.maxLen, filters.minLen, filters.sortMode, query, words]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -153,6 +190,7 @@ export function WordCheatSheet() {
     setWords((prev) => uniqueWordsCaseInsensitive([normalized, ...prev]));
     setNewWord("");
     setManualError(null);
+    setLastSyncAt(new Date());
   }
 
   async function onImport() {
@@ -235,6 +273,7 @@ export function WordCheatSheet() {
         `Import selesai: ${entries.length} entri diproses (duplikat otomatis diabaikan).${skippedTooLong ? ` ${skippedTooLong} entri terlalu panjang di-skip.` : ""}`,
       );
       setImportFile(null);
+      setLastSyncAt(new Date());
     } catch (e) {
       const message = e instanceof Error ? e.message : "Gagal membaca file.";
       setImportError(message);
@@ -243,213 +282,271 @@ export function WordCheatSheet() {
     }
   }
 
-  const isEmptyQuery = !query.trim();
-  const showEmptyState = !filtered.length;
+  React.useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 2200);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
+  function focusInput() {
+    inputRef.current?.focus();
+    inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function focusOutput() {
+    outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function onCopy(value: string) {
+    try {
+      await copyText(value);
+      setToast(`Disalin: ${value}`);
+    } catch {
+      setToast("Gagal menyalin.");
+    }
+  }
+
+  const modeBadge = supabase
+    ? { label: "MODE", value: "ONLINE", tone: "success" as const }
+    : {
+        label: "MODE",
+        value: isSupabaseConfigured ? "OFFLINE" : "LOCAL",
+        tone: "info" as const,
+      };
+
+  const lastSyncLabel = lastSyncAt
+    ? new Intl.DateTimeFormat("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(lastSyncAt)
+    : "-";
 
   return (
     <div className="flex-1">
-      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-        <header className="mb-6">
-          <p className="text-xs font-medium tracking-wide text-blue-700 dark:text-blue-300">
-            Sambung Kata Helper
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
-            Cheat Sheet Sambung Kata
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Ketik awalan huruf untuk mencari kata secara real-time. Kamu juga bisa
-            tambah kata baru, dan semua perangkat akan langsung ikut update.
-          </p>
-        </header>
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+        <HeroSection onCtaClick={focusInput} />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <section>
-            <Card.Root>
+        <StatusBadgesRow
+          className="mt-4"
+          badges={[
+            modeBadge,
+            { label: "TOTAL", value: String(view.totalUnique), tone: "neutral" },
+            { label: "HASIL", value: String(view.matched), tone: "info" },
+            { label: "LIMIT", value: String(filters.limit), tone: "neutral" },
+            { label: "SYNC", value: lastSyncLabel, tone: "neutral" },
+          ]}
+        />
+
+        <div className="mt-8 grid gap-4 lg:grid-cols-12">
+          <section className="space-y-4 lg:col-span-7">
+            <Card.Root className="rounded-3xl border-slate-200/70 bg-white/75 backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5">
               <Card.Header>
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-                      Pencarian Real-time
+                    <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
+                      INPUT
+                    </p>
+                    <h2 className="mt-2 text-sm font-semibold text-slate-950 dark:text-white/90">
+                      Kata/Frasa Awal
                     </h2>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                      Hasil akan muncul saat kamu mengetik (startsWith, tidak
-                      peka huruf besar/kecil).
+                    <p className="mt-1 text-xs text-slate-600 dark:text-white/60">
+                      Hasil muncul saat mengetik (startsWith, tidak peka huruf besar/kecil).
                     </p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-300">
-                    {filtered.length} hasil
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Label.Root htmlFor="search" className="sr-only">
-                    Cari kata
-                  </Label.Root>
-                  <Input.Root
-                    id="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder='Contoh: "A", "AN", "ANT"'
-                    autoComplete="off"
-                  />
-                </div>
-              </Card.Header>
-              <Card.Body>
-                <div className="mt-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      {isEmptyQuery
-                        ? "Ketik awalan untuk memfilter." 
-                        : `Menampilkan hasil untuk: “${query.trim()}”`}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Total kata: {allWords.length}
-                    </p>
-                  </div>
-
-                  <div className="max-h-[52vh] overflow-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/30">
-                    {isLoadingWords ? (
-                      <div className="px-4 py-6 text-sm text-slate-600 dark:text-slate-300">
-                        Memuat kamus…
-                      </div>
-                    ) : showEmptyState ? (
-                      <div className="px-4 py-6 text-sm text-slate-600 dark:text-slate-300">
-                        Tidak ada hasil yang cocok.
-                      </div>
-                    ) : (
-                      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {filtered.map((word) => (
-                          <li
-                            key={word.toLocaleLowerCase()}
-                            className="px-4 py-3 text-sm text-slate-900 transition-colors hover:bg-slate-50 dark:text-slate-50 dark:hover:bg-white/5"
-                          >
-                            {word}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </Card.Body>
-            </Card.Root>
-          </section>
-
-          <section className="space-y-4">
-            <Card.Root>
-              <Card.Header>
-                <h2 className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-                  Import Kata/Kalimat
-                </h2>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  Upload file PDF, Word (.docx), atau Notepad (.txt). Duplikat akan diabaikan.
-                </p>
-              </Card.Header>
-              <Card.Body>
-                <div className="space-y-3">
-                  <div>
-                    <Label.Root htmlFor="importFile" className="sr-only">
-                      Pilih file
-                    </Label.Root>
-                    <input
-                      id="importFile"
-                      type="file"
-                      accept=".pdf,.docx,.txt"
-                      onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-                      className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/15 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-200 dark:file:bg-white/10 dark:file:text-slate-100 dark:hover:file:bg-white/15"
-                    />
-                    {importStatus ? (
-                      <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                        {importStatus}
-                      </p>
-                    ) : null}
-                    {importError ? (
-                      <p className="mt-2 text-xs text-red-600">{importError}</p>
-                    ) : null}
                   </div>
                   <Button.Root
-                    className="w-full"
-                    onClick={onImport}
-                    disabled={!importFile || isImporting}
+                    variant="neutral"
+                    mode="stroke"
+                    size="sm"
+                    onClick={() => {
+                      setQuery("");
+                      focusInput();
+                    }}
                   >
-                    {isImporting ? "Mengimpor…" : "Import"}
+                    Clear
                   </Button.Root>
+                </div>
+              </Card.Header>
+              <Card.Body>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex-1">
+                    <Label.Root htmlFor="search" className="sr-only">
+                      Kata/Frasa awal
+                    </Label.Root>
+                    <Input.Root
+                      ref={inputRef}
+                      id="search"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") focusOutput();
+                      }}
+                      placeholder='Contoh: "A", "AN", "ANT"'
+                      autoComplete="off"
+                      className="h-12"
+                    />
+                  </div>
+                  <Button.Root
+                    className="h-12 sm:w-36"
+                    onClick={focusOutput}
+                    disabled={!query.trim()}
+                  >
+                    Proses
+                  </Button.Root>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-slate-600 dark:text-white/60">
+                    {!query.trim()
+                      ? "Ketik awalan untuk memfilter."
+                      : `Menampilkan untuk: “${query.trim()}”`}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-white/45">
+                    {supabase
+                      ? "Tersimpan di Supabase dan tersinkron real-time."
+                      : "Mode lokal: Supabase belum aktif."}
+                  </p>
                 </div>
               </Card.Body>
             </Card.Root>
 
-            <Card.Root>
+            <div ref={outputRef}>
+              <OutputChips
+                id="hasil"
+                isLoading={isLoadingWords}
+                query={query}
+                totalUnique={view.totalUnique}
+                matched={view.matched}
+                items={view.visible}
+                onCopy={onCopy}
+              />
+            </div>
+          </section>
+
+          <aside className="space-y-4 lg:col-span-5">
+            <FilterCard
+              value={filters}
+              onChange={setFilters}
+              onReset={() =>
+                setFilters({ sortMode: "recent", minLen: null, maxLen: null, limit: 200 })
+              }
+            />
+
+            <Card.Root className="rounded-3xl border-slate-200/70 bg-white/75 backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-white/5">
               <Card.Header>
-                <h2 className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-                  Tambah Manual
+                <h2 className="text-sm font-semibold text-slate-950 dark:text-white/90">
+                  Tambah Data
                 </h2>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  Tambah satu kata/kalimat, langsung tersimpan ke Supabase.
+                <p className="mt-1 text-xs text-slate-600 dark:text-white/60">
+                  Import file dan tambah manual. Angka/marker seperti “141.” atau “.” otomatis dibuang.
                 </p>
               </Card.Header>
               <Card.Body>
-                <form onSubmit={onSubmit} className="space-y-3">
+                <div className="space-y-5">
                   <div>
-                    <Label.Root htmlFor="newWord" className="sr-only">
-                      Kata atau kalimat baru
-                    </Label.Root>
-                    <Input.Root
-                      id="newWord"
-                      value={newWord}
-                      onChange={(e) => setNewWord(e.target.value)}
-                      placeholder="Tulis kata atau kalimat baru…"
-                      autoComplete="off"
-                    />
-                    {manualError ? (
-                      <p className="mt-2 text-xs text-red-600">{manualError}</p>
-                    ) : null}
+                    <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
+                      IMPORT
+                    </p>
+                    <div className="mt-2">
+                      <Label.Root htmlFor="importFile" className="sr-only">
+                        Pilih file
+                      </Label.Root>
+                      <input
+                        id="importFile"
+                        type="file"
+                        accept=".pdf,.docx,.txt"
+                        onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                        className="block w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-sky-500/15 dark:border-white/10 dark:bg-black/20 dark:text-white/80 dark:file:bg-white/10 dark:hover:file:bg-white/15 dark:focus:ring-[#7DD3FC]/20"
+                      />
+                      {importStatus ? (
+                        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                          {importStatus}
+                        </p>
+                      ) : null}
+                      {importError ? (
+                        <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
+                          {importError}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Button.Root
+                      className="mt-3 w-full"
+                      onClick={onImport}
+                      disabled={!importFile || isImporting}
+                    >
+                      {isImporting ? "Mengimpor…" : "Import"}
+                    </Button.Root>
                   </div>
-                  <Button.Root className="w-full">Simpan</Button.Root>
-                </form>
-              </Card.Body>
-            </Card.Root>
 
-            <Card.Root>
-              <Card.Header>
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-                    Kata Terbaru
-                  </h2>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-300">
-                    {words.length} kata
+                  <div className="h-px w-full bg-white/10" />
+
+                  <div>
+                    <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
+                      MANUAL
+                    </p>
+                    <form onSubmit={onSubmit} className="mt-2 space-y-3">
+                      <div>
+                        <Label.Root htmlFor="newWord" className="sr-only">
+                          Kata atau kalimat baru
+                        </Label.Root>
+                        <Input.Root
+                          id="newWord"
+                          value={newWord}
+                          onChange={(e) => setNewWord(e.target.value)}
+                          placeholder="Tulis kata atau kalimat baru…"
+                          autoComplete="off"
+                        />
+                        {manualError ? (
+                          <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">
+                            {manualError}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Button.Root className="w-full">Simpan</Button.Root>
+                    </form>
                   </div>
-                </div>
-              </Card.Header>
-              <Card.Body>
-                <div className="max-h-[40vh] overflow-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/30">
-                  {isLoadingWords ? (
-                    <div className="px-4 py-6 text-sm text-slate-600 dark:text-slate-300">
-                      Memuat kata terbaru…
+
+                  <div className="h-px w-full bg-white/10" />
+
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-mono text-xs tracking-wider text-slate-500 dark:text-white/60">
+                        TERBARU
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-white/50">
+                        {words.length} entri
+                      </p>
                     </div>
-                  ) : words.length ? (
-                    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {words.slice(0, 50).map((word) => (
-                        <li
-                          key={word.toLocaleLowerCase()}
-                          className="px-4 py-3 text-sm text-slate-900 transition-colors hover:bg-slate-50 dark:text-slate-50 dark:hover:bg-white/5"
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {words.slice(0, 8).map((w) => (
+                        <button
+                          key={w.toLocaleLowerCase()}
+                          type="button"
+                          onClick={() => onCopy(w)}
+                          className="rounded-2xl border border-slate-200/70 bg-slate-950/[0.03] px-3 py-2 text-left text-xs text-slate-700 transition-colors hover:border-sky-200 hover:bg-slate-950/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/30 dark:border-white/10 dark:bg-black/20 dark:text-white/80 dark:hover:border-[#7DD3FC]/35 dark:hover:bg-black/30 dark:focus-visible:ring-[#7DD3FC]/35"
                         >
-                          {word}
-                        </li>
+                          <span className="block truncate font-mono">{w}</span>
+                        </button>
                       ))}
-                    </ul>
-                  ) : (
-                    <div className="px-4 py-6 text-sm text-slate-600 dark:text-slate-300">
-                      Belum ada kata di kamus.
                     </div>
-                  )}
+                  </div>
                 </div>
               </Card.Body>
             </Card.Root>
-          </section>
+          </aside>
         </div>
 
-        <footer className="mt-8 text-xs text-slate-500 dark:text-slate-400">
-          {supabase ? "Tersimpan di Supabase dan tersinkron real-time." : "Mode lokal: Supabase belum aktif."}
+        <footer className="mt-10 text-center text-xs text-slate-500 dark:text-white/45">
+          {supabase
+            ? "LIVE FEED ACTIVE"
+            : "LOCAL MODE ACTIVE — set env Supabase untuk sinkron real-time"}
         </footer>
       </div>
+
+      {toast ? (
+        <div className="pointer-events-none fixed bottom-6 right-6 z-50 rounded-2xl border border-slate-200/70 bg-white/85 px-4 py-3 text-sm text-slate-800 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/75 dark:border-white/10 dark:bg-black/40 dark:text-white/85 dark:shadow-[0_14px_40px_rgba(0,0,0,0.55)]">
+          <span className="font-mono">{toast}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

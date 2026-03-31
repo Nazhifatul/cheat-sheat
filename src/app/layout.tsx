@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cheat Sheet Sambung Kata",
+  title: "Sambung Kata — Generator Kata Lanjutan",
   description:
-    "Cari kata cepat dengan search real-time dan simpan kata favorit di browser.",
+    "Cari kata cepat dengan search real-time, import dari file, dan sinkron otomatis lewat Supabase.",
 };
 
 export default function RootLayout({

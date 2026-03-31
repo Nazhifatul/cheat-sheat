@@ -15,11 +15,11 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const variantClass: Record<ButtonVariant, Record<ButtonMode, string>> = {
   primary: {
     filled:
-      "bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:bg-blue-700",
+      "bg-[#FFB86B] text-slate-950 shadow-sm hover:bg-[#FFB86B]/90 active:bg-[#FFB86B]/90",
     stroke:
-      "border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 active:bg-blue-50 dark:border-blue-800/40 dark:bg-slate-950/30 dark:text-blue-200 dark:hover:bg-slate-900/40 dark:active:bg-slate-900/40",
+      "border border-[#FFB86B]/35 bg-white/70 text-slate-950 hover:bg-white/80 active:bg-white/80 dark:border-[#FFB86B]/25 dark:bg-white/5 dark:text-[#FFE7CE] dark:hover:bg-white/10 dark:active:bg-white/10",
     lighter:
-      "bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-500/15 dark:active:bg-blue-500/15",
+      "bg-[#FFB86B]/20 text-[#FFDCB3] hover:bg-[#FFB86B]/25 active:bg-[#FFB86B]/25",
     ghost: "bg-transparent text-blue-700 hover:bg-blue-50 active:bg-blue-50",
   },
   neutral: {
@@ -57,7 +57,7 @@ function ButtonRoot(
       type={type}
       disabled={disabled}
       className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-blue-400/30 dark:focus-visible:ring-offset-slate-950",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7DD3FC]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-offset-[#0B0F14]",
         sizeClass[size],
         variantClass[variant][mode],
         className,
