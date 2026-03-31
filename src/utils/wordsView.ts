@@ -4,7 +4,7 @@ import {
   uniqueWordsCaseInsensitive,
 } from "@/utils/filterWords";
 
-export type SortMode = "recent" | "az";
+export type SortMode = "az" | "za" | "recent";
 
 export type WordsViewParams = {
   words: string[];
@@ -24,7 +24,11 @@ export function computeVisibleWords(params: WordsViewParams) {
       ? [...unique].sort((a, b) =>
           a.toLocaleLowerCase().localeCompare(b.toLocaleLowerCase()),
         )
-      : unique;
+      : params.sortMode === "za"
+        ? [...unique].sort((a, b) =>
+            b.toLocaleLowerCase().localeCompare(a.toLocaleLowerCase()),
+          )
+        : unique;
 
   const startsWithFiltered = filterWordsStartsWith(sorted, params.query);
   const endsWithFiltered = filterWordsEndsWith(
