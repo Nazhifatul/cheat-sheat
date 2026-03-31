@@ -426,9 +426,7 @@ export function WordCheatSheet() {
 
                   <div className="flex gap-2">
                     <Button.Root
-                      variant="neutral"
-                      mode="stroke"
-                      className="flex-1"
+                      className="flex-1 bg-[#ef4444] text-white hover:bg-[#dc2626] active:bg-[#dc2626]"
                       onClick={clearSearch}
                     >
                       Bersihkan
