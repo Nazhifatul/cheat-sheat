@@ -47,6 +47,11 @@ export function WordCheatSheet() {
   const [isImporting, setIsImporting] = React.useState(false);
   const [importStatus, setImportStatus] = React.useState<string | null>(null);
   const [importError, setImportError] = React.useState<string | null>(null);
+  const [deleteQuery, setDeleteQuery] = React.useState("");
+  const [selectedDeletes, setSelectedDeletes] = React.useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [deleteStatus, setDeleteStatus] = React.useState<string | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const [manualError, setManualError] = React.useState<string | null>(null);
   const [sortMode, setSortMode] = React.useState<"az" | "za">("az");
   const [toast, setToast] = React.useState<string | null>(null);
@@ -146,6 +151,14 @@ export function WordCheatSheet() {
       limit: 200,
     });
   }, [query, sortMode, suffixQuery, words]);
+
+  const deleteCandidates = React.useMemo(() => {
+    const q = deleteQuery.trim().toLocaleLowerCase();
+    const source = q
+      ? words.filter((word) => word.toLocaleLowerCase().includes(q))
+      : words;
+    return source.slice(0, 18);
+  }, [deleteQuery, words]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -273,6 +286,57 @@ export function WordCheatSheet() {
       setImportError(message);
     } finally {
       setIsImporting(false);
+    }
+  }
+
+  function toggleDeleteWord(word: string) {
+    setDeleteStatus(null);
+    setDeleteError(null);
+    setSelectedDeletes((prev) =>
+      prev.includes(word) ? prev.filter((item) => item !== word) : [...prev, word],
+    );
+  }
+
+  async function onDeleteSelected() {
+    if (!selectedDeletes.length) {
+      setDeleteError("Pilih dulu kata/kalimat yang ingin dihapus.");
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+    setDeleteStatus(null);
+
+    try {
+      const client = supabase;
+
+      if (!client) {
+        setWords((prev) => prev.filter((word) => !selectedDeletes.includes(word)));
+        setDeleteStatus(
+          `${selectedDeletes.length} entri dihapus dari data lokal.`,
+        );
+        setSelectedDeletes([]);
+        return;
+      }
+
+      const { error } = await client
+        .from("words")
+        .delete()
+        .in("word", selectedDeletes);
+
+      if (error) {
+        setDeleteError(`Gagal menghapus data. ${error.message}`);
+        return;
+      }
+
+      setWords((prev) => prev.filter((word) => !selectedDeletes.includes(word)));
+      setDeleteStatus(
+        `${selectedDeletes.length} entri berhasil dihapus dari database.`,
+      );
+      setSelectedDeletes([]);
+      setLastSyncAt(new Date());
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -469,7 +533,85 @@ export function WordCheatSheet() {
               </p>
             </Card.Header>
             <Card.Body>
-              <div className="space-y-4">
+                <div className="space-y-4">
+                <div>
+                  <Label.Root
+                    htmlFor="deleteWord"
+                    className="text-sm font-medium text-slate-700"
+                  >
+                    Hapus kata/kalimat
+                  </Label.Root>
+                  <Input.Root
+                    id="deleteWord"
+                    value={deleteQuery}
+                    onChange={(e) => setDeleteQuery(e.target.value)}
+                    placeholder="Cari kata atau kalimat yang mau dihapus…"
+                    autoComplete="off"
+                    className="mt-2 border-slate-300 bg-white"
+                  />
+                  <div className="mt-3 max-h-48 overflow-auto rounded-2xl border border-slate-900/10 bg-slate-50/70 p-2">
+                    <div className="grid gap-2">
+                      {deleteCandidates.length ? (
+                        deleteCandidates.map((word) => {
+                          const active = selectedDeletes.includes(word);
+                          return (
+                            <button
+                              key={word.toLocaleLowerCase()}
+                              type="button"
+                              onClick={() => toggleDeleteWord(word)}
+                              className={
+                                active
+                                  ? "rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-left text-sm text-rose-900"
+                                  : "rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 hover:border-slate-300"
+                              }
+                            >
+                              <span className="block break-words font-mono">
+                                {word}
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <p className="px-2 py-3 text-sm text-slate-500">
+                          Tidak ada hasil untuk pencarian ini.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button.Root
+                      className="flex-1 bg-[#ef4444] text-white hover:bg-[#dc2626] active:bg-[#dc2626]"
+                      onClick={onDeleteSelected}
+                      disabled={!selectedDeletes.length || isDeleting}
+                    >
+                      {isDeleting
+                        ? "Menghapus…"
+                        : `Hapus ${selectedDeletes.length || ""}`.trim()}
+                    </Button.Root>
+                    <Button.Root
+                      variant="neutral"
+                      mode="stroke"
+                      className="flex-1"
+                      onClick={() => {
+                        setDeleteQuery("");
+                        setSelectedDeletes([]);
+                        setDeleteError(null);
+                        setDeleteStatus(null);
+                      }}
+                    >
+                      Clear pilihan
+                    </Button.Root>
+                  </div>
+                  {deleteStatus ? (
+                    <p className="mt-2 text-xs text-emerald-700">{deleteStatus}</p>
+                  ) : null}
+                  {deleteError ? (
+                    <p className="mt-2 text-xs text-rose-700">{deleteError}</p>
+                  ) : null}
+                </div>
+
+                <div className="h-px w-full bg-slate-200" />
+
                 <div>
                   <Label.Root htmlFor="importFile" className="text-sm font-medium text-slate-700">
                     Import file
